@@ -104,7 +104,7 @@ function patchWorkbench(source, relative) {
   const [, , services, details, , composer] = signature;
   const requestLog = /;return ([\w$]+)\.logService\.info\("\[buildRequestedModel\]"/;
   if (!requestLog.test(source)) throw new Error('原生请求模型日志签名不匹配。');
-  source = source.replace(requestLog, `,customRequest=(${resolveRequestedModel.toString()})(d,${composer},${details},pid=>{const parent=${services}.composerDataService.allComposersData.allComposers?.find(item=>item.composerId===pid);return parent?.modelConfig?.modelName;});return $1.logService.info("[buildRequestedModel]"`);
+  source = source.replace(requestLog, `,customRequest=(${resolveRequestedModel.toString()})(d,${composer},pid=>{const parent=${services}.composerDataService.allComposersData.allComposers?.find(item=>item.composerId===pid);return parent?.modelConfig?.modelName;},value=>uEp({apiKey:value.apiKey,openaiApiBaseUrl:value.baseUrl}));return $1.logService.info("[buildRequestedModel]"`);
   source = source.replace(/new ([\w$]+)\(\{modelId:d,maxMode:u,/, 'new $1({modelId:customRequest?customRequest.modelId:d,maxMode:u,');
   source = source.replace(new RegExp(`,credentials:([\\w$]+)\\(${details}\\)\\}`), `,credentials:customRequest?customRequest.credentials:$1(${details})}`);
   source = source.replace(/async runLocalAgentInExtensionHost\([^)]*\)\{[\s\S]*?(?=async prewarm\(\))/, method => {
