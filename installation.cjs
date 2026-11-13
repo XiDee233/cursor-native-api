@@ -23,7 +23,7 @@ class Installation {
     fs.mkdirSync(this.storage, { recursive: true });
   }
   status() {
-    const job = fs.existsSync(this.jobPath) ? JSON.parse(fs.readFileSync(this.jobPath, 'utf8')) : { state: 'idle' };
+    const job = fs.existsSync(this.jobPath) ? JSON.parse(fs.readFileSync(this.jobPath, 'utf8').replace(/^\uFEFF/, '')) : { state: 'idle' };
     const currentJob = job.revision === this.patcher.REVISION;
     const state = currentJob && job.state === 'completed' && Date.parse(job.at) > this.auditedAt ? job.result : this.snapshot;
     const ready = state.enabled && state.revision === state.targetRevision;

@@ -7,6 +7,7 @@ function resolveRequestedModel(id, composer, parentModelName, buildCredentials) 
   const catalog = globalThis.__cursorNativeApiCatalog;
   const names = globalThis.__cursorNativeApiNames;
   const credentials = globalThis.__cursorNativeApiCredentials;
+  if (catalog === undefined || credentials === undefined) return undefined;
   // Only subagent turns are overridden; the main conversation keeps Cursor's own
   // identity so the composer route still owns it.
   if (composer?.subagentInfo?.parentComposerId === undefined) return undefined;

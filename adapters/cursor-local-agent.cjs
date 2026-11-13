@@ -72,6 +72,11 @@ function patchWorkbench(source, relative) {
   if ([...source.matchAll(pattern)].length !== 1) throw new Error('原生 API 配置命令签名不匹配。');
   const commandService = service('commandService');
   const agentClientService = service('agentClientService');
+  // Cursor routes agent turns through its Agent Host when this returns true. Our
+  // integration lives on the composer/local-agent path, so keep turns there.
+  const hostSwitch = 'isCursorAgentHostEnabled(){return this._topologyEnabled&&(this._isGlass||this._readPolicy()!=="denied")}';
+  if (!source.includes(hostSwitch)) throw new Error('原生 Agent Host 分流签名不匹配。');
+  source = source.replace(hostSwitch, 'isCursorAgentHostEnabled(){return!1}');
   source = source.replace('=["anysphere.cursor-resolver","anysphere.cursor-always-local","anysphere.cursor-agent-worker"', '=["local-tools.cursor-native-api","anysphere.cursor-resolver","anysphere.cursor-always-local","anysphere.cursor-agent-worker"');
   source = source.replace(/async executeTurn\(([\w$]+)\)\{const ([\w$]+)=\1\.conversationId;this\._rootSessionMirror/, (all, turn, conversation) => {
     const call = ['ctx', 'conversationState', 'action', 'modelDetails', 'interactionListener', 'resourceAccessor', 'blobStore', 'conversationActionManager', 'checkpointHandler', 'mcpTools', 'runOptions'].map(field => `${turn}.${field}`).join(',');
@@ -115,7 +120,7 @@ function patchWorkbench(source, relative) {
     const prepare = source.match(/await ([\w$]+)\(\{ctx:[\w$]+,action:[\w$]+,resources:[\w$]+,blobStore:[\w$]+,options:[\w$]+,source:"queued_action"\}/)[1];
     const buffer = method.match(/defaultModel:([\w$]+)\.wrap\(/)[1];
     method = method.replace('){', ',configuredRuntime,conversationActionManager){');
-    method = method.replace('){', `){if(configuredRuntime){const credentials=globalThis.__cursorNativeApiCredentials[configuredRuntime.serviceId];${modelDetails}=${modelDetails}?${modelDetails}.constructor.fromBinary(${modelDetails}.toBinary()):this.createDefaultLocalModel(${options});${modelDetails}.modelId=configuredRuntime.modelId;${modelDetails}.credentials=${modelDetails}.constructor.fromJson({apiKeyCredentials:credentials}).credentials;if(${options}.requestedModel)${options}.requestedModel.credentials=${modelDetails}.credentials;}`);
+    method = method.replace('){', `){if(configuredRuntime){const credentials=await this.instantiationService.invokeFunction(accessor=>accessor.get(${commandService})).executeCommand("cursorNativeApi.provider",configuredRuntime.serviceId);${modelDetails}=${modelDetails}?${modelDetails}.constructor.fromBinary(${modelDetails}.toBinary()):this.createDefaultLocalModel(${options});${modelDetails}.modelId=configuredRuntime.modelId;${modelDetails}.credentials=${modelDetails}.constructor.fromJson({apiKeyCredentials:credentials}).credentials;if(${options}.requestedModel)${options}.requestedModel.credentials=${modelDetails}.credentials;}`);
     method = method.replace(/customHeaders:([\w$]+)\.customHeaders,/, (all, provider) => `customHeaders:configuredRuntime?{...${provider}.customHeaders,...(/^https:\\/\\/(?:[^/]+\\.)?opencode\\.ai\\//.test(${provider}.baseUrl)?{"x-opencode-session":${options}.conversationId}:{})}:${provider}.customHeaders,`);
     method = method.replace('this.logService.info(', `const configuredCatalog=configuredRuntime?Object.values(${catalog}).filter(model=>model.serviceId===configuredRuntime.serviceId):[];this.logService.info(`);
     method = method.replace('try{const ', `const conversationAction=configuredRuntime?(${connectConversationActions.toString()})(conversationActionManager,${ctx},${streamFactory}(),async action=>{await ${prepare}({ctx:${ctx},action,resources:${resources},blobStore:${blobs},options:${options},source:"queued_action"});return ${buffer}.wrap(action.toBinary())}):undefined;try{const `);

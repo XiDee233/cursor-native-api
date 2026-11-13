@@ -21,7 +21,7 @@ async function nativeBridge(services, request) {
     reactive.manualSave();
     await storage.flush();
   }
-  return { bridge: 30 };
+  return { bridge: 32 };
 }
 
 module.exports = { nativeBridge };
