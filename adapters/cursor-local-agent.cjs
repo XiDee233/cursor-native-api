@@ -94,7 +94,7 @@ function patchWorkbench(source, relative) {
   source = source.slice(0, gatewayStart) + replacement + source.slice(gatewayEnd);
   source = patchModelPicker(source);
   const catalogRead = 'getAvailableDefaultModels(){return[...this._availableDefaultModels()]}';
-  source = source.replace(catalogRead, 'getAvailableDefaultModels(){const configured=this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2||{};return [...this._availableDefaultModels(),...Object.entries(configured).map(([name,config])=>(' + enrichModel.toString() + ')({name,serverModelName:name,supportsAgent:true,defaultOn:true,isUserAdded:true,legacySlugs:[],idAliases:[],cloudAgentEffortModes:[],modelPickerBadges:[]},config))]}');
+  source = source.replace(catalogRead, 'getAvailableDefaultModels(){const configured=this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2||{};return [...this._availableDefaultModels(),...Object.entries(configured).map(([name,config])=>(' + enrichModel.toString() + ')({name,serverModelName:name,supportsAgent:true,defaultOn:true},config))]}');
   source = source.replace(/(getAllPotentialModelsReactiveWithStatus\(\)\.filter\([\w$]+\))/, '$1.filter(model=>!model.name.startsWith("cursor-native-api:"))');
   source = source.replace(/async runLocalAgentInExtensionHost\([^)]*\)\{[\s\S]*?(?=async prewarm\(\))/, method => {
     const catalog = 'this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2';

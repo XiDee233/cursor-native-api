@@ -195,7 +195,7 @@ function modelCard(profile, id, config) {
 function showInstallation(install) {
   $('badge').textContent = install.label;
   $('installation-message').hidden = install.ready; $('installation-message').textContent = install.message;
-  $('installation-detail').textContent = 'Cursor ' + install.version + (pluginVersion ? ' · 插件 ' + pluginVersion : '');
+  $('installation-detail').textContent = 'Cursor ' + install.version + ' · 插件 ' + pluginVersion;
   $('install').hidden = !install.canApply; $('restore').hidden = !install.enabled;
 }
 $('profiles').addEventListener('change', () => { selectedServiceId = $('profiles').value; showService(); status(''); });
@@ -242,7 +242,7 @@ window.addEventListener('message', ({ data }) => {
     profiles = data.profiles; presets = data.presets;
     for (const profile of profiles) { keys.set(profile.id, ''); catalogs.set(profile.id, []); selections.set(profile.id, new Set()); }
     selectedServiceId = profiles.length ? profiles[0].id : '';
-    pluginVersion = data.version || pluginVersion;
+    pluginVersion = data.version;
     showService(); showInstallation(data.installation);
   } else if (data.type === 'saved') {
     $('save').disabled = false;

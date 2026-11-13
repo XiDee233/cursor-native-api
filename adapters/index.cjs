@@ -1,6 +1,6 @@
 'use strict';
 const adapters = [require('./cursor-local-agent.cjs')];
-const REVISION = 28;
+const REVISION = 29;
 const testedVersions = adapters.flatMap(adapter => adapter.testedVersions);
 function selectAdapter(root, appRoot = root) {
   const matches = adapters.filter(adapter => adapter.matches(root, appRoot));

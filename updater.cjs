@@ -8,20 +8,19 @@ const DAY = 24 * 60 * 60 * 1000;
 
 function newer(candidate, current) {
   const parse = value => String(value).replace(/^v/i, '').split('.').map(Number);
-  const [a, b] = [parse(candidate), parse(current)];
-  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-    const left = a[index] || 0;
-    const right = b[index] || 0;
+  const [next, installed] = [parse(candidate), parse(current)];
+  for (let index = 0; index < Math.max(next.length, installed.length); index += 1) {
+    const left = next[index] || 0;
+    const right = installed[index] || 0;
     if (left !== right) return left > right;
   }
   return false;
 }
 
 function repository(context) {
-  const value = context.extension.packageJSON.repository;
-  const url = typeof value === 'string' ? value : value?.url;
-  const match = url?.match(/github\.com[/:]([^/]+)\/([^/#]+)/i);
-  return match ? `${match[1]}/${match[2].replace(/\.git$/i, '')}` : undefined;
+  const url = context.extension.packageJSON.repository.url;
+  const match = url.match(/github\.com[/:]([^/]+)\/([^/#]+)/i);
+  return `${match[1]}/${match[2].replace(/\.git$/i, '')}`;
 }
 
 class Updates {
@@ -40,19 +39,14 @@ class Updates {
     return response.json();
   }
   async check({ interactive = false } = {}) {
-    if (!this.repo) {
-      if (interactive) vscode.window.showInformationMessage('Cursor Native API：尚未配置 GitHub 仓库地址，无法检查更新。');
-      return;
-    }
-    const current = this.context.extension.packageJson.version;
+    const current = this.context.extension.packageJSON.version;
     const release = await this.release();
-    const latest = String(release.tag_name || release.name || '').replace(/^v/i, '');
+    const latest = String(release.tag_name).replace(/^v/i, '');
     if (!newer(latest, current)) {
       if (interactive) vscode.window.showInformationMessage(`Cursor Native API：已是最新版本 ${current}。`);
       return;
     }
-    const asset = (release.assets || []).find(item => item.name.endsWith('.vsix'));
-    if (!asset) throw new Error(`新版本 ${latest} 没有附带 VSIX 安装包。`);
+    const asset = release.assets.find(item => item.name.endsWith('.vsix'));
     const choice = await vscode.window.showInformationMessage(
       `Cursor Native API：发现新版本 ${latest}（当前 ${current}）。`, '安装并重启', '稍后');
     if (choice !== '安装并重启') return;
@@ -71,16 +65,14 @@ class Updates {
     });
     if (!response.ok) throw new Error(`下载更新失败：HTTP ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());
-    const digest = asset.digest?.startsWith('sha256:') ? asset.digest.slice(7) : undefined;
-    if (digest && crypto.createHash('sha256').update(bytes).digest('hex') !== digest) {
+    if (crypto.createHash('sha256').update(bytes).digest('hex') !== asset.digest.replace(/^sha256:/, '')) {
       throw new Error('更新包校验失败，已丢弃。');
     }
     fs.writeFileSync(file, bytes);
     return file;
   }
   checkInBackground() {
-    const last = this.context.globalState.get('updateCheckedAt') || 0;
-    if (Date.now() - last < DAY) return;
+    if (Date.now() - this.context.globalState.get('updateCheckedAt', 0) < DAY) return;
     this.context.globalState.update('updateCheckedAt', Date.now());
     this.check().catch(error => this.output.appendLine(error.message));
   }
