@@ -1,6 +1,7 @@
 'use strict';
 const { nativeBridge } = require('../runtime/bridge.cjs');
 const { enrichModel } = require('../runtime/model.cjs');
+const { resolveRequestedModel } = require('../runtime/requested-model.cjs');
 const { patchModelCapabilities } = require('./model-capabilities.cjs');
 const { patchModelPicker } = require('./model-picker.cjs');
 const { showConfigPanel } = require('../runtime/config-panel.cjs');
@@ -96,6 +97,16 @@ function patchWorkbench(source, relative) {
   const catalogRead = 'getAvailableDefaultModels(){return[...this._availableDefaultModels()]}';
   source = source.replace(catalogRead, 'getAvailableDefaultModels(){const configured=this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2||{};return [...this._availableDefaultModels(),...Object.entries(configured).map(([name,config])=>(' + enrichModel.toString() + ')({name,serverModelName:name,supportsAgent:true,defaultOn:true},config))]}');
   source = source.replace(/(getAllPotentialModelsReactiveWithStatus\(\)\.filter\([\w$]+\))/, '$1.filter(model=>!model.name.startsWith("cursor-native-api:"))');
+  // A turn's requestedModel is the only place Cursor crosses from model identity to
+  // the provider call, so subagent inheritance and credentials are resolved here.
+  const signature = source.match(/function ([\w$]+)\(([\w$]+),([\w$]+),([\w$]+)\)\{const ([\w$]+)=\2\.composerDataService\.getComposerData\(/);
+  if (signature === null) throw new Error('原生请求模型构建签名不匹配。');
+  const [, , services, details, , composer] = signature;
+  const requestLog = /;return ([\w$]+)\.logService\.info\("\[buildRequestedModel\]"/;
+  if (!requestLog.test(source)) throw new Error('原生请求模型日志签名不匹配。');
+  source = source.replace(requestLog, `,customRequest=(${resolveRequestedModel.toString()})(d,${composer},${details},pid=>{const parent=${services}.composerDataService.allComposersData.allComposers?.find(item=>item.composerId===pid);return parent?.modelConfig?.modelName;});return $1.logService.info("[buildRequestedModel]"`);
+  source = source.replace(/new ([\w$]+)\(\{modelId:d,maxMode:u,/, 'new $1({modelId:customRequest?customRequest.modelId:d,maxMode:u,');
+  source = source.replace(new RegExp(`,credentials:([\\w$]+)\\(${details}\\)\\}`), `,credentials:customRequest?customRequest.credentials:$1(${details})}`);
   source = source.replace(/async runLocalAgentInExtensionHost\([^)]*\)\{[\s\S]*?(?=async prewarm\(\))/, method => {
     const catalog = 'this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2';
     const args = method.match(/^async runLocalAgentInExtensionHost\(([^)]*)\)/)[1].split(',');
@@ -104,7 +115,7 @@ function patchWorkbench(source, relative) {
     const prepare = source.match(/await ([\w$]+)\(\{ctx:[\w$]+,action:[\w$]+,resources:[\w$]+,blobStore:[\w$]+,options:[\w$]+,source:"queued_action"\}/)[1];
     const buffer = method.match(/defaultModel:([\w$]+)\.wrap\(/)[1];
     method = method.replace('){', ',configuredRuntime,conversationActionManager){');
-    method = method.replace('){', `){if(configuredRuntime){const credentials=await this.instantiationService.invokeFunction(accessor=>accessor.get(${commandService})).executeCommand("cursorNativeApi.provider",configuredRuntime.serviceId);${modelDetails}=${modelDetails}?${modelDetails}.constructor.fromBinary(${modelDetails}.toBinary()):this.createDefaultLocalModel(${options});${modelDetails}.modelId=configuredRuntime.modelId;${modelDetails}.credentials=${modelDetails}.constructor.fromJson({apiKeyCredentials:credentials}).credentials;if(${options}.requestedModel)${options}.requestedModel.credentials=${modelDetails}.credentials;}`);
+    method = method.replace('){', `){if(configuredRuntime){const credentials=globalThis.__cursorNativeApiCredentials[configuredRuntime.serviceId];${modelDetails}=${modelDetails}?${modelDetails}.constructor.fromBinary(${modelDetails}.toBinary()):this.createDefaultLocalModel(${options});${modelDetails}.modelId=configuredRuntime.modelId;${modelDetails}.credentials=${modelDetails}.constructor.fromJson({apiKeyCredentials:credentials}).credentials;if(${options}.requestedModel)${options}.requestedModel.credentials=${modelDetails}.credentials;}`);
     method = method.replace(/customHeaders:([\w$]+)\.customHeaders,/, (all, provider) => `customHeaders:configuredRuntime?{...${provider}.customHeaders,...(/^https:\\/\\/(?:[^/]+\\.)?opencode\\.ai\\//.test(${provider}.baseUrl)?{"x-opencode-session":${options}.conversationId}:{})}:${provider}.customHeaders,`);
     method = method.replace('this.logService.info(', `const configuredCatalog=configuredRuntime?Object.values(${catalog}).filter(model=>model.serviceId===configuredRuntime.serviceId):[];this.logService.info(`);
     method = method.replace('try{const ', `const conversationAction=configuredRuntime?(${connectConversationActions.toString()})(conversationActionManager,${ctx},${streamFactory}(),async action=>{await ${prepare}({ctx:${ctx},action,resources:${resources},blobStore:${blobs},options:${options},source:"queued_action"});return ${buffer}.wrap(action.toBinary())}):undefined;try{const `);
