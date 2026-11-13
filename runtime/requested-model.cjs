@@ -2,8 +2,8 @@
 
 // Cursor keeps sessions model-agnostic: every turn carries requestedModel, so a
 // subagent is only pointed at a service here. Returns the provider model id and
-// the credentials for the owning service, or undefined for native models.
-function resolveRequestedModel(id, composer, modelDetails, parentModelName) {
+// the credentials built by Cursor's own credentials constructor.
+function resolveRequestedModel(id, composer, parentModelName, buildCredentials) {
   const catalog = globalThis.__cursorNativeApiCatalog;
   const names = globalThis.__cursorNativeApiNames;
   const credentials = globalThis.__cursorNativeApiCredentials;
@@ -13,10 +13,7 @@ function resolveRequestedModel(id, composer, modelDetails, parentModelName) {
     entry = parent === undefined ? undefined : catalog[parent];
   }
   if (entry === undefined) return undefined;
-  return {
-    modelId: entry.modelId,
-    credentials: modelDetails.constructor.fromJson({ apiKeyCredentials: credentials[entry.serviceId] }).credentials
-  };
+  return { modelId: entry.modelId, credentials: buildCredentials(credentials[entry.serviceId]) };
 }
 
 module.exports = { resolveRequestedModel };

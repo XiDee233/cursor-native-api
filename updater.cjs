@@ -3,6 +3,7 @@ const vscode = require('vscode');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { request } = require('./runtime/http.cjs');
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -31,12 +32,10 @@ class Updates {
     this.storage = context.globalStorageUri.fsPath;
   }
   async release() {
-    const response = await fetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'cursor-native-api' },
-      signal: AbortSignal.timeout(20000)
-    });
-    if (!response.ok) throw new Error(`检查更新失败：HTTP ${response.status}`);
-    return response.json();
+    const response = await request(`https://api.github.com/repos/${this.repo}/releases/latest`, { timeoutMs: 20000 });
+    if (response.status === 403) throw new Error('检查更新失败：GitHub 请求超限，请稍后再试。');
+    if (response.status !== 200) throw new Error(`检查更新失败：HTTP ${response.status}`);
+    return JSON.parse(response.body.toString('utf8'));
   }
   async check({ interactive = false } = {}) {
     const current = this.context.extension.packageJSON.version;
@@ -60,15 +59,12 @@ class Updates {
     fs.mkdirSync(directory, { recursive: true });
     const file = path.join(directory, asset.name);
     this.output.appendLine(`下载更新 ${version}：${asset.browser_download_url}`);
-    const response = await fetch(asset.browser_download_url, {
-      headers: { 'User-Agent': 'cursor-native-api' }, signal: AbortSignal.timeout(120000)
-    });
-    if (!response.ok) throw new Error(`下载更新失败：HTTP ${response.status}`);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (crypto.createHash('sha256').update(bytes).digest('hex') !== asset.digest.replace(/^sha256:/, '')) {
+    const response = await request(asset.browser_download_url, { timeoutMs: 120000 });
+    if (response.status !== 200) throw new Error(`下载更新失败：HTTP ${response.status}`);
+    if (crypto.createHash('sha256').update(response.body).digest('hex') !== asset.digest.replace(/^sha256:/, '')) {
       throw new Error('更新包校验失败，已丢弃。');
     }
-    fs.writeFileSync(file, bytes);
+    fs.writeFileSync(file, response.body);
     return file;
   }
   checkInBackground() {
