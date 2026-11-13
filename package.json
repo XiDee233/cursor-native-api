@@ -2,7 +2,7 @@
   "name": "cursor-native-api",
   "displayName": "Cursor Native API",
   "description": "在 Cursor 原生聊天中连接模型服务，使用原生 Edit 调整推理强度。",
-  "version": "0.9.5",
+  "version": "0.9.7",
   "publisher": "local-tools",
   "license": "MIT",
   "repository": {
@@ -54,7 +54,7 @@
     }
   },
   "scripts": {
-    "package": "vsce package --no-dependencies --target win32-x64 --out cursor-native-api-0.9.5.vsix"
+    "package": "vsce package --no-dependencies --target win32-x64 --out cursor-native-api-0.9.7.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.7.1"
