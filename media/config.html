@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{csp}}; script-src 'nonce-{{nonce}}';">
+<link rel="stylesheet" href="{{css}}">
+</head>
+<body>
+<main>
+<header><div><h1>模型服务</h1><p>连接 API，添加模型，在聊天中直接使用。</p></div><span id="badge" class="badge">正在加载</span></header>
+<p id="installation-message" class="notice" hidden></p>
+<div class="service-toolbar"><div class="service-select"><label for="profiles">服务</label><select id="profiles" aria-label="选择要编辑的服务"></select></div><button id="new">＋ 添加服务</button><button id="remove-service" class="subtle danger">删除服务</button></div>
+<div id="empty" class="empty" hidden><h2>添加你的第一个模型服务</h2><p>准备好服务地址和 API Key，即可连接 OpenAI 兼容接口。</p><button id="empty-add" class="primary">＋ 添加服务</button></div>
+<div id="service-editor" hidden>
+<section class="card">
+<div class="section-heading"><h2>连接设置</h2><span class="tag">OpenAI 兼容</span></div>
+<div class="field"><label for="name">服务名称</label><input id="name" placeholder="例如：我的模型服务"></div>
+<div class="field"><label for="baseUrl">Base URL</label><input id="baseUrl" type="url" required placeholder="https://example.com/v1" spellcheck="false"><p class="hint">填写服务商提供的完整 API 地址。</p></div>
+<div class="field"><label for="key">API Key</label><div class="input-action"><input id="key" type="password" autocomplete="off" placeholder="填写 API Key"><button id="toggle-key" class="subtle">显示</button></div><p id="key-hint" class="hint">密钥保存在编辑器安全存储中。</p></div>
+</section>
+<section class="card">
+<div class="section-heading"><div><h2>模型 <span id="model-count" class="count"></span></h2><p class="hint">读取后勾选要添加的模型，也可以手动填写模型 ID。</p></div><button id="models">读取模型</button></div>
+<div id="discovery" class="discovery" hidden>
+<div class="row"><input id="model-search" type="search" placeholder="搜索模型 ID 或名称" aria-label="搜索服务提供的模型"><button id="select-all" class="subtle">全选</button><button id="select-none" class="subtle">全不选</button></div>
+<div id="discovered-models" class="discovered-models"></div>
+<div class="discovery-footer"><span id="discovery-count" class="hint"></span><button id="add-selected">添加选中模型</button></div>
+</div>
+<div class="row manual-add"><input id="manual-model" placeholder="手动输入模型 ID" aria-label="手动输入模型 ID" spellcheck="false"><button id="add-model">添加模型</button></div>
+<div id="model-cards" class="model-cards"></div>
+<p id="no-models" class="empty-models">尚未添加模型。先读取列表，或填写服务商提供的模型 ID。</p>
+</section>
+<p class="hint chat-hint">保存后，在聊天框的模型菜单中选择模型；点击模型旁的 Edit 调整本次对话的推理强度。</p>
+</div>
+<details class="management"><summary>扩展管理</summary><p id="installation-detail" class="hint"></p><div class="row"><button id="install" hidden>完成安装</button><button id="installation-status" class="subtle">查看安装状态</button><button id="restore" class="subtle">停用模型服务</button></div><p class="hint">安装和停用在退出全部 Cursor 窗口后完成。已保存的服务配置会保留。</p></details>
+<footer class="save-bar"><div><span id="save-state" role="status">所有服务的更改统一保存</span><p id="status" role="status" aria-live="polite"></p></div><button id="save" class="primary">保存全部配置</button></footer>
+</main>
+<script nonce="{{nonce}}" src="{{script}}"></script>
+</body>
+</html>

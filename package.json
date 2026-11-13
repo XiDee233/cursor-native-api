@@ -1,0 +1,62 @@
+{
+  "name": "cursor-native-api",
+  "displayName": "Cursor Native API",
+  "description": "在 Cursor 原生聊天中连接模型服务，使用原生 Edit 调整推理强度。",
+  "version": "0.9.5",
+  "publisher": "local-tools",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/REPLACE-ME/cursor-native-api"
+  },
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.cjs",
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:cursorNativeApi.settings",
+    "onCommand:cursorNativeApi.provider",
+    "onCommand:cursorNativeApi.checkUpdate"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursorNativeApi.settings",
+        "title": "配置模型服务"
+      },
+      {
+        "command": "cursorNativeApi.checkUpdate",
+        "title": "检查扩展更新"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "cursorNativeApi.settings",
+          "when": "!cursorNativeApi.integrated"
+        },
+        {
+          "command": "cursorNativeApi.checkUpdate"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "package": "vsce package --no-dependencies --target win32-x64 --out cursor-native-api-0.9.5.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.7.1"
+  }
+}

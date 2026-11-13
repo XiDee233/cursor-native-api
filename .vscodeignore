@@ -1,0 +1,8 @@
+node_modules/**
+test/**
+validation/**
+*.vsix
+package-lock.json
+**/*.log
+**/state/**
+provider-models.json
