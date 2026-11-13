@@ -20,8 +20,12 @@ class Settings {
   provider(serviceId) { return this.profiles.credentials(serviceId); }
   async apply(profiles) {
     if (!this.installation.status().ready || !this.context.globalState.get('integrationEnabled', true)) return false;
-    await this.bridge('apply', { catalog: createCatalog(profiles) });
+    await this.bridge('apply', { catalog: createCatalog(profiles), credentials: await this.credentials(profiles) });
     return true;
+  }
+  async credentials(profiles) {
+    return Object.fromEntries(await Promise.all(profiles.map(async profile =>
+      [profile.id, { baseUrl: profile.baseUrl, apiKey: await this.profiles.secret(profile.id) }])));
   }
   async state(webview) {
     webview.postMessage({ type: 'state', version: this.context.extension.packageJSON.version, profiles: await this.profiles.read(), presets, installation: this.installation.status() });
