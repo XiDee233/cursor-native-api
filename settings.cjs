@@ -24,7 +24,7 @@ class Settings {
     return true;
   }
   async state(webview) {
-    webview.postMessage({ type: 'state', profiles: await this.profiles.read(), presets, installation: this.installation.status() });
+    webview.postMessage({ type: 'state', version: this.context.extension.packageJSON.version, profiles: await this.profiles.read(), presets, installation: this.installation.status() });
   }
   async save(message, webview) {
     const profiles = await this.profiles.save(message.profiles, message.apiKeys);
