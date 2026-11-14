@@ -3,7 +3,7 @@ const { nativeBridge } = require('../runtime/bridge.cjs');
 const { enrichModel } = require('../runtime/model.cjs');
 const { patchModelRouting } = require('./model-routing.cjs');
 const { patchToolWorkbench, patchToolExtensionHost, patchHostTools } = require('./tool-runtime.cjs');
-const { patchRuntimeGate } = require('./runtime-gate.cjs');
+const { patchRuntimeGate, gateMatches } = require('./runtime-gate.cjs');
 const { patchModelCapabilities } = require('./model-capabilities.cjs');
 const { patchModelPicker } = require('./model-picker.cjs');
 const { showConfigPanel } = require('../runtime/config-panel.cjs');
@@ -26,7 +26,7 @@ const WORKBENCH = [
   /=\["anysphere.cursor-resolver","anysphere.cursor-always-local","anysphere.cursor-agent-worker"/g
 ];
 
-const testedVersions = ['3.30.8'];
+const testedVersions = ['3.30.8', '3.30.14'];
 const OFF = 'cursorPredictionOptions:!1,localMode:!1,restoresStoredServer:!1,orbitBuild:!1';
 const ON = 'cursorPredictionOptions:!1,localMode:!0,restoresStoredServer:!1,orbitBuild:!1';
 const BUNDLES = [
@@ -130,7 +130,7 @@ function matches(root, appRoot = root) {
   const sources = BUNDLES.map(file => ({ file, text: fs.readFileSync(path.join(root, file), 'utf8') }));
   const runtime = fs.readFileSync(path.join(fs.existsSync(path.join(root, DEDICATED)) ? root : appRoot, DEDICATED), 'utf8');
   return sources.every(({ text }) => text.split(OFF).length === 2 && !text.includes(ON))
-    && sources.filter(({ file }) => /workbench\.(desktop|glass)\.main\.js$/.test(file)).every(({ text }) => WORKBENCH.every(rule => [...text.matchAll(rule)].length === 1) && ['commandService', 'aiService', 'authenticationService', 'reactiveStorageService', 'storageService', 'modelConfigService', 'AISettingsService'].every(name => text.split('("'+name+'")').length === 2))
+    && sources.filter(({ file }) => /workbench\.(desktop|glass)\.main\.js$/.test(file)).every(({ text }) => gateMatches(text) && WORKBENCH.every(rule => [...text.matchAll(rule)].length === 1) && ['commandService', 'aiService', 'authenticationService', 'reactiveStorageService', 'storageService', 'modelConfigService', 'AISettingsService'].every(name => text.split('("'+name+'")').length === 2))
     && /configuredEffortValues:([\w$]+)\.configuredEffortValues/.test(runtime);
 }
 function resolveRuntimeActions(sourceRoot, appRoot, relative) {
