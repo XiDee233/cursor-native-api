@@ -204,7 +204,10 @@ $('remove-service').addEventListener('click', removeService);
 $('name').addEventListener('input', () => { current().name = $('name').value; changed(); drawServices(); });
 for (const id of ['baseUrl', 'key']) $(id).addEventListener('input', () => {
   const profile = current();
-  if (id === 'baseUrl') profile.baseUrl = $('baseUrl').value; else { keys.set(profile.id, $('key').value); delete $('key').dataset.revealed; }
+  if (id === 'baseUrl') profile.baseUrl = $('baseUrl').value; else {
+    keys.set(profile.id, $('key').value); delete $('key').dataset.revealed;
+    keyRequests.delete(profile.id); $('toggle-key').disabled = false;
+  }
   requests.delete(profile.id); catalogs.set(profile.id, []); selections.set(profile.id, new Set());
   changed(); drawDiscovery();
 });
@@ -291,15 +294,19 @@ window.addEventListener('message', ({ data }) => {
   } else if (data.type === 'key') {
     if (keyRequests.get(data.serviceId) !== data.requestId) return;
     keyRequests.delete(data.serviceId);
-    $('toggle-key').disabled = false;
     if (data.serviceId !== selectedServiceId) return;
+    $('toggle-key').disabled = false;
     if (!data.apiKey) { status('没有找到已保存的 Key，请重新填写。', true); return; }
     $('key').value = data.apiKey; $('key').dataset.revealed = 'true';
     $('key').type = 'text'; $('toggle-key').textContent = '隐藏'; status('');
   } else if (data.type === 'error') {
     if (data.requestType === 'save') $('save').disabled = false;
-    if (data.requestType === 'key') { keyRequests.delete(data.serviceId); $('toggle-key').disabled = false; }
+    if (data.requestType === 'key') {
+      if (keyRequests.get(data.serviceId) !== data.requestId) return;
+      keyRequests.delete(data.serviceId);
+    }
     if (data.serviceId !== selectedServiceId) return;
+    if (data.requestType === 'key') $('toggle-key').disabled = false;
     if (data.requestType === 'models' && requests.get(data.serviceId) !== data.requestId) return;
     status(data.message, true);
   } else if (data.type === 'tested') {

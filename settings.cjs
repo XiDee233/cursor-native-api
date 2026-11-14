@@ -19,13 +19,11 @@ class Settings {
   async initialize() { await this.apply(this.profiles.all); }
   provider(serviceId) { return this.profiles.credentials(serviceId); }
   async apply(profiles) {
-    if (!this.installation.status().ready || !this.context.globalState.get('integrationEnabled', true)) return false;
-    await this.bridge('apply', { catalog: createCatalog(profiles), credentials: await this.credentials(profiles) });
+    const ready = this.installation.status().ready;
+    const enabled = this.context.globalState.get('integrationEnabled', true);
+    if (!ready || !enabled) return false;
+    await this.bridge('apply', { catalog: createCatalog(profiles) });
     return true;
-  }
-  async credentials(profiles) {
-    return Object.fromEntries(await Promise.all(profiles.map(async profile =>
-      [profile.id, { baseUrl: profile.baseUrl, apiKey: await this.profiles.secret(profile.id) }])));
   }
   async state(webview) {
     webview.postMessage({ type: 'state', version: this.context.extension.packageJSON.version, profiles: await this.profiles.read(), presets, installation: this.installation.status() });

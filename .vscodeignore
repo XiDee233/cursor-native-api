@@ -1,6 +1,9 @@
 node_modules/**
 test/**
 validation/**
+docs/**
+PUBLISH.md
+.gitignore
 *.vsix
 package-lock.json
 **/*.log

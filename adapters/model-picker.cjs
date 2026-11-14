@@ -1,20 +1,22 @@
 'use strict';
 
 function patchModelPicker(source) {
-  source = source.replace(/([\w$]+)\(\(\)=>([\w$]+)\(\)&&([\w$]+)\(\)==="confirmed-free"\)/,
-    (all, memo, policy, membership, offset) => {
-      const context = source.slice(offset - 2200, offset);
-      const services = [...context.matchAll(/([\w$]+)\.reactiveStorageService\.applicationUserPersistentStorage/g)].at(-1)[1];
-      return `${memo}(()=>${policy}()&&${membership}()==="confirmed-free"&&Object.keys(${services}.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2??{}).length===0)`;
-    });
-  const selector = /([\w$]+)=([\w$]+)\(([\w$]+),([\w$]+)=>\(\{useOpenAIKey:\4\.applicationUserPersistentStorage\.useOpenAIKey\?\?!1\}\)\)/;
-  source = source.replace(selector, '$1=$2($3,$4=>({useOpenAIKey:$4.applicationUserPersistentStorage.useOpenAIKey??!1,hasConfiguredModels:Object.keys($4.applicationUserPersistentStorage.cursorNativeApiCatalogV2??{}).length>0}))');
-  source = source.replace(/const ([\w$]+)=([\w$]+)&&([\w$]+)==="confirmed-free",/,
-    (all, flag, policy, membership, offset) => {
-      const context = source.slice(offset - 10000, offset);
-      const selected = [...context.matchAll(/([\w$]+)=[\w$]+\([\w$]+,[\w$]+=>\(\{useOpenAIKey:/g)].at(-1)[1];
-      return `const ${flag}=${policy}&&${membership}==="confirmed-free"&&!${selected}.hasConfiguredModels,`;
-    });
+  // Keep Cursor's membership result. Custom choices never unlock additional
+  // official models, and the native locked selection cannot replace a custom one.
+  const gate = source.match(/const ([\w$]+)=([\w$]+)\(\(\)=>([\w$]+)\(\)&&([\w$]+)\(\)==="confirmed-free"\)/);
+  const locked = gate[1];
+  const selection = source.match(new RegExp(`([\\w$]+)=([\\w$]+)\\(\\(\\)=>${locked}\\(\\)\\?([\\w$]+)\\(([\\w$]+)\\.reactiveStorageService\\.applicationUserPersistentStorage\\.lockedModelPickerSelection\\):([\\w$]+)\\)`));
+  const [, lockedSelection, , resolveLocked, services] = selection;
+  const catalog = `${services}.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2??{}`;
+  const hasModels = `Object.keys(${catalog}).length>0`;
+  const list = /let ([\w$]+)=([\w$]+)\(([\w$]+),([\w$]+),([\w$]+),([\w$]+)\(\)\);return/;
+  if ([...source.matchAll(new RegExp(list.source, 'g'))].length !== 1) throw new Error('原生模型菜单列表签名不匹配。');
+  source = source.replace(list, (all, rows) => all.replace(';return', `;if(${locked}()&&${hasModels})${rows}=${rows}.filter(model=>model.cursorNativeApi||model.name===${resolveLocked}(${services}.reactiveStorageService.applicationUserPersistentStorage.lockedModelPickerSelection).modelId);return`));
+  source = source.replace(new RegExp(`eligible:${locked}\\(\\),onUpgradeClick:`), `eligible:${locked}()&&!(${hasModels}),onUpgradeClick:`);
+  const effect = new RegExp(`if\\(!${locked}\\(\\)\\)return;const ([\\w$]+)=${lockedSelection}\\(\\);[\\w$]+\\(\\(\\)=>\\{const ([\\w$]+)=([\\w$]+)\\.composerDataHandle\\(\\),([\\w$]+)=([\\w$]+)\\(\\),`);
+  const current = source.match(effect)[5];
+  source = source.replace(new RegExp(`if\\(!${locked}\\(\\)\\)return;const ([\\w$]+)=${lockedSelection}\\(\\);`),
+    `if(!${locked}()||(${catalog})[${current}()?.selectedModels?.[0]?.modelId??${current}()?.modelName])return;const $1=${lockedSelection}();`);
   return source;
 }
 
