@@ -4,6 +4,12 @@ const { enrichModel } = require('../runtime/model.cjs');
 const { patchModelRouting } = require('./model-routing.cjs');
 const { patchToolWorkbench, patchToolExtensionHost, patchHostTools } = require('./tool-runtime.cjs');
 const { patchRuntimeGate, gateMatches } = require('./runtime-gate.cjs');
+const {
+  patchWorkbenchImageLimits,
+  patchRuntimeImageLimits,
+  workbenchImageLimitMatches,
+  runtimeImageLimitMatches
+} = require('./image-limits.cjs');
 const { patchModelCapabilities } = require('./model-capabilities.cjs');
 const { patchModelPicker } = require('./model-picker.cjs');
 const { showConfigPanel } = require('../runtime/config-panel.cjs');
@@ -44,6 +50,7 @@ const BUNDLES = [
 function patchSdk(source, relative, actions) {
   if (relative === HOST) return patchHostTools(source);
   if (relative !== DEDICATED) return source;
+  source = patchRuntimeImageLimits(source);
   source = patchModelCapabilities(source);
   return patchSdkConversationActions(source, actions[relative]);
 }
@@ -85,6 +92,7 @@ function patchWorkbench(source, relative) {
   source = source.replace(/(getAllPotentialModelsReactiveWithStatus\(\)\.filter\([\w$]+\))/, '$1.filter(model=>!model.name.startsWith("cursor-native-api:"))');
   source = patchModelRouting(source, names);
   source = patchRuntimeGate(source);
+  source = patchWorkbenchImageLimits(source);
   source = patchToolWorkbench(source, names);
   source = source.replace(/async runLocalAgentInExtensionHost\([^)]*\)\{[\s\S]*?(?=async prewarm\(\))/, method => {
     const catalog = 'this.reactiveStorageService.applicationUserPersistentStorage.cursorNativeApiCatalogV2';
@@ -130,7 +138,8 @@ function matches(root, appRoot = root) {
   const sources = BUNDLES.map(file => ({ file, text: fs.readFileSync(path.join(root, file), 'utf8') }));
   const runtime = fs.readFileSync(path.join(fs.existsSync(path.join(root, DEDICATED)) ? root : appRoot, DEDICATED), 'utf8');
   return sources.every(({ text }) => text.split(OFF).length === 2 && !text.includes(ON))
-    && sources.filter(({ file }) => /workbench\.(desktop|glass)\.main\.js$/.test(file)).every(({ text }) => gateMatches(text) && WORKBENCH.every(rule => [...text.matchAll(rule)].length === 1) && ['commandService', 'aiService', 'authenticationService', 'reactiveStorageService', 'storageService', 'modelConfigService', 'AISettingsService'].every(name => text.split('("'+name+'")').length === 2))
+    && sources.filter(({ file }) => /workbench\.(desktop|glass)\.main\.js$/.test(file)).every(({ text }) => workbenchImageLimitMatches(text) && gateMatches(text) && WORKBENCH.every(rule => [...text.matchAll(rule)].length === 1) && ['commandService', 'aiService', 'authenticationService', 'reactiveStorageService', 'storageService', 'modelConfigService', 'AISettingsService'].every(name => text.split('("'+name+'")').length === 2))
+    && runtimeImageLimitMatches(runtime)
     && /configuredEffortValues:([\w$]+)\.configuredEffortValues/.test(runtime);
 }
 function resolveRuntimeActions(sourceRoot, appRoot, relative) {
